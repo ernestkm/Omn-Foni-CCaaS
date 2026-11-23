@@ -5,6 +5,7 @@ import { dirname, join } from 'node:path';
 import { authenticate, authenticateOidc } from './auth.js';
 import { routes, send, readBody } from './http.js';
 import { registerWidgetRoutes } from './routes/widget.js';
+import { registerAdminRoutes } from './routes/admin.js';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -54,6 +55,7 @@ export function startServer(port = Number(process.env.PORT || 8080)) {
 import { registerAgentRoutes } from './routes/agent.js';
 registerAgentRoutes();
 registerWidgetRoutes();
+registerAdminRoutes();
 
 const isMain = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];
 if (isMain) {

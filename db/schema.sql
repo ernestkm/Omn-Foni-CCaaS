@@ -109,4 +109,5 @@ $$;
 GRANT USAGE ON SCHEMA public TO app_user;
 GRANT SELECT, INSERT, UPDATE ON tenants, api_tokens, contacts, conversations, messages TO app_user;
 GRANT SELECT, INSERT ON audit_events TO app_user;
+GRANT DELETE ON api_tokens TO app_user;
 GRANT EXECUTE ON FUNCTION resolve_token(text) TO app_user;
