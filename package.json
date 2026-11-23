@@ -7,9 +7,11 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
-    "db:up": "docker compose up -d postgres",
+    "kc:up": "docker compose up -d keycloak",
+    "db:up": "docker compose up -d postgres keycloak",
+    "services:up": "docker compose up -d postgres keycloak",
     "db:reset": "node scripts/db-reset.js",
     "test": "node scripts/db-reset.js && node --test --test-concurrency=1 test/*.test.js"
   },
-  "dependencies": { "pg": "^8.13.1" }
+  "dependencies": { "jose": "^6.2.18", "pg": "^8.13.1" }
 }
