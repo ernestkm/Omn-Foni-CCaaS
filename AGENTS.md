@@ -21,6 +21,7 @@ PostgreSQL RLS, web chat, agent inbox API); later blueprint phases are deferred.
 - `evidence/static-extraction-notes.md`: analyst string-extraction findings,
   artifact SHA-256 digests, and coverage limits.
 - `src/`, `db/`, `scripts/`, `public/`, `test/`: thin-core slice (see README.md).
+- `keycloak/`: realm export and Keycloak Compose assets.
 - `docs/superpowers/plans/`: implementation plans.
 
 ## Documentation rules
@@ -52,13 +53,21 @@ PostgreSQL RLS, web chat, agent inbox API); later blueprint phases are deferred.
 
 - Debian 12 bookworm; `apt` works.
 - Node v22.23.4 at `/opt/node-v22.23.4-linux-x64`; `npx` 10.9.9.
-- Commands (thin-core slice, Node 22 ESM, only runtime dep `pg`):
+- Commands (thin-core slice, Node 22 ESM, runtime deps `pg` and `jose`):
   - `npm install` install deps.
-  - `npm run db:up` start Postgres via Docker Compose.
+  - `npm run db:up` start Postgres and Keycloak via Docker Compose.
+  - `npm run kc:up` start Keycloak only via Docker Compose.
+  - `npm run services:up` start Postgres and Keycloak via Docker Compose.
   - `npm run db:reset` destructive dev/test DB reset + seed.
   - `npm start` run the core on PORT (default 8080).
-  - `npm test` reset DB then run node:test suite (includes isolation tests).
+  - `npm test` reset DB then run node:test suite (requires Postgres and Keycloak).
   - No lint/typecheck configured (plain JS, no build step).
+
+## Auth model (Phase 0)
+
+Agent and admin routes require Keycloak OIDC bearer tokens (RS256, pinned issuer
+and audience). Widget routes use static widget tokens. The agent panel signs in
+with Authorization Code + PKCE. Audit rows in `audit_events` are append-only.
 
 ## REA tooling caveats
 

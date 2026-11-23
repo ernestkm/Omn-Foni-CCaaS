@@ -13,3 +13,11 @@ test('index contains widget and inbox panels', async () => {
   assert.match(html, /api\/widget\/messages/);
   assert.match(html, /api\/agent\/conversations/);
 });
+
+test('index contains PKCE sign-in for the agent panel', async () => {
+  const html = await (await fetch(ctx.base + '/')).text();
+  assert.match(html, /id="signIn"/);
+  assert.match(html, /code_challenge/);
+  assert.match(html, /code_verifier/);
+  assert.match(html, /openid-connect\/auth/);
+});
