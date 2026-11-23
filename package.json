@@ -1,0 +1,15 @@
+{
+  "name": "omn-foni-ccaas-core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "db:up": "docker compose up -d postgres",
+    "db:reset": "node scripts/db-reset.js",
+    "test": "node scripts/db-reset.js && node --test --test-concurrency=1 test/*.test.js"
+  },
+  "dependencies": { "pg": "^8.13.1" }
+}

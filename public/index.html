@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Omn-Foni CCaaS</title>
+<style>
+  body { font-family: system-ui, sans-serif; margin: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; padding: 1rem; }
+  section { border: 1px solid #ccc; border-radius: 8px; padding: 1rem; }
+  h1 { grid-column: 1 / -1; font-size: 1.2rem; }
+  .log { border: 1px solid #eee; height: 240px; overflow-y: auto; padding: .5rem; margin: .5rem 0; }
+  .msg { margin: .25rem 0; }
+  .customer { color: #0a5; } .agent { color: #05a; }
+  input, button { font: inherit; padding: .4rem; }
+  label { display: block; margin: .25rem 0; }
+  .dev { color: #a00; font-size: .8rem; }
+</style>
+</head>
+<body>
+<h1>Omn-Foni CCaaS thin core <span class="dev">dev tokens only</span></h1>
+
+<section id="widget" aria-label="Customer web chat">
+  <h2>Customer web chat</h2>
+  <label>Widget token <input id="widgetToken" value="acme-widget-token"></label>
+  <div class="log" id="widgetLog" aria-live="polite"></div>
+  <label>Message <input id="widgetInput" placeholder="Type a message"></label>
+  <button id="widgetSend">Send</button>
+</section>
+
+<section id="inbox" aria-label="Agent inbox">
+  <h2>Agent inbox</h2>
+  <label>Agent token <input id="agentToken" value="acme-agent-token"></label>
+  <button id="refresh">Refresh conversations</button>
+  <div class="log" id="convList" aria-live="polite"></div>
+  <label>Reply <input id="replyInput" placeholder="Reply to selected conversation"></label>
+  <button id="replySend">Reply</button>
+</section>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let conversationId = null;
+let selectedConv = null;
+
+function add(log, text, cls) {
+  const div = document.createElement('div');
+  div.className = 'msg ' + (cls || '');
+  div.textContent = text;
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+}
+
+async function call(method, path, token, body) {
+  const res = await fetch(path, {
+    method,
+    headers: { authorization: 'Bearer ' + token, 'content-type': 'application/json' },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  return { status: res.status, json: await res.json().catch(() => null) };
+}
+
+$('widgetSend').addEventListener('click', async () => {
+  const token = $('widgetToken').value;
+  const text = $('widgetInput').value.trim();
+  if (!text) return;
+  if (!conversationId) {
+    const c = await call('POST', '/api/widget/conversations', token, {});
+    conversationId = c.json.id;
+  }
+  const r = await call('POST', '/api/widget/messages', token, { conversationId, body: text });
+  if (r.status === 201) { add($('widgetLog'), 'You: ' + text, 'customer'); $('widgetInput').value = ''; }
+  else add($('widgetLog'), 'Error: ' + r.status);
+});
+
+$('refresh').addEventListener('click', async () => {
+  const token = $('agentToken').value;
+  const r = await call('GET', '/api/agent/conversations', token);
+  const list = $('convList'); list.textContent = '';
+  if (r.status !== 200) { add(list, 'Error: ' + r.status); return; }
+  for (const c of r.json.conversations) {
+    const btn = document.createElement('button');
+    btn.textContent = c.id.slice(0, 8) + ' (' + c.status + ')';
+    btn.addEventListener('click', async () => {
+      selectedConv = c.id;
+      const m = await call('GET', '/api/agent/conversations/' + c.id + '/messages', token);
+      list.textContent = '';
+      for (const msg of m.json.messages) add(list, msg.sender + ': ' + msg.body, msg.sender);
+    });
+    list.appendChild(btn);
+  }
+});
+
+$('replySend').addEventListener('click', async () => {
+  if (!selectedConv) return;
+  const token = $('agentToken').value;
+  const text = $('replyInput').value.trim();
+  if (!text) return;
+  const r = await call('POST', '/api/agent/conversations/' + selectedConv + '/messages', token, { body: text });
+  if (r.status === 201) { add($('convList'), 'agent: ' + text, 'agent'); $('replyInput').value = ''; }
+});
+</script>
+</body>
+</html>
