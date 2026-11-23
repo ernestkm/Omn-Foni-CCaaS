@@ -47,16 +47,28 @@ CREATE TABLE IF NOT EXISTS messages (
   created_at timestamptz NOT NULL DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS audit_events (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id uuid NOT NULL REFERENCES tenants(id),
+  actor text NOT NULL,
+  action text NOT NULL,
+  target text,
+  source_ip text,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
 ALTER TABLE tenants ENABLE ROW LEVEL SECURITY;
 ALTER TABLE api_tokens ENABLE ROW LEVEL SECURITY;
 ALTER TABLE contacts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE conversations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE audit_events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tenants FORCE ROW LEVEL SECURITY;
 ALTER TABLE api_tokens FORCE ROW LEVEL SECURITY;
 ALTER TABLE contacts FORCE ROW LEVEL SECURITY;
 ALTER TABLE conversations FORCE ROW LEVEL SECURITY;
 ALTER TABLE messages FORCE ROW LEVEL SECURITY;
+ALTER TABLE audit_events FORCE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS tenant_isolation ON tenants;
 CREATE POLICY tenant_isolation ON tenants
@@ -83,6 +95,11 @@ CREATE POLICY tenant_isolation ON messages
   USING (tenant_id = current_setting('app.tenant_id', true)::uuid)
   WITH CHECK (tenant_id = current_setting('app.tenant_id', true)::uuid);
 
+DROP POLICY IF EXISTS tenant_isolation ON audit_events;
+CREATE POLICY tenant_isolation ON audit_events
+  USING (tenant_id = current_setting('app.tenant_id', true)::uuid)
+  WITH CHECK (tenant_id = current_setting('app.tenant_id', true)::uuid);
+
 CREATE OR REPLACE FUNCTION resolve_token(p_hash text)
 RETURNS TABLE(tenant_id uuid, role text)
 LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
@@ -91,4 +108,5 @@ $$;
 
 GRANT USAGE ON SCHEMA public TO app_user;
 GRANT SELECT, INSERT, UPDATE ON tenants, api_tokens, contacts, conversations, messages TO app_user;
+GRANT SELECT, INSERT ON audit_events TO app_user;
 GRANT EXECUTE ON FUNCTION resolve_token(text) TO app_user;
