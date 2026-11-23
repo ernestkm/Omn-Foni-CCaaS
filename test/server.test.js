@@ -24,7 +24,7 @@ test('agent endpoint rejects invalid token', async () => {
 
 test('widget token cannot access agent endpoint', async () => {
   const { status } = await api(ctx.base, 'GET', '/api/agent/conversations', { token: TOKENS.acmeWidget });
-  assert.equal(status, 403);
+  assert.equal(status, 401);
 });
 
 test('serves index.html at root', async () => {

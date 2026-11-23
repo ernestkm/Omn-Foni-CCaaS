@@ -2,7 +2,7 @@ import http from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { authenticate } from './auth.js';
+import { authenticate, authenticateOidc } from './auth.js';
 import { routes, send, readBody } from './http.js';
 import { registerWidgetRoutes } from './routes/widget.js';
 
@@ -24,7 +24,7 @@ async function dispatch(req, res) {
     if (req.method !== route.method) continue;
     const m = path.match(route.pattern);
     if (!m) continue;
-    const tenant = await authenticate(req);
+    const tenant = route.auth === 'oidc' ? await authenticateOidc(req) : await authenticate(req);
     if (!tenant) return send(res, 401, { error: 'unauthorized' });
     if (!route.roles.includes(tenant.role)) return send(res, 403, { error: 'forbidden' });
     const body = (req.method === 'POST' || req.method === 'PUT') ? await readBody(req) : {};

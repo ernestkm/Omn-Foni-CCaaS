@@ -1,9 +1,7 @@
 import { createAppServer } from '../src/server.js';
 
 export const TOKENS = {
-  acmeAgent: 'acme-agent-token',
   acmeWidget: 'acme-widget-token',
-  globexAgent: 'globex-agent-token',
   globexWidget: 'globex-widget-token',
 };
 export const ACME = '11111111-1111-1111-1111-111111111111';

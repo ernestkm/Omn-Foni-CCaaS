@@ -10,6 +10,7 @@ export function registerAgentRoutes() {
     method: 'GET',
     pattern: /^\/api\/agent\/conversations$/,
     roles: ['agent', 'admin'],
+    auth: 'oidc',
     handler: async (req, res, { tenant }) => {
       const rows = await withTenant(tenant.tenant_id, async (c) => {
         const { rows } = await c.query('SELECT id, status, channel, created_at FROM conversations ORDER BY created_at DESC LIMIT 100');
@@ -23,6 +24,7 @@ export function registerAgentRoutes() {
     method: 'GET',
     pattern: /^\/api\/agent\/conversations\/(?<id>[^/]+)\/messages$/,
     roles: ['agent', 'admin'],
+    auth: 'oidc',
     handler: async (req, res, { tenant, params }) => {
       const id = requireUuid(params.id, 'id');
       const rows = await withTenant(tenant.tenant_id, async (c) => {
@@ -38,6 +40,7 @@ export function registerAgentRoutes() {
     method: 'POST',
     pattern: /^\/api\/agent\/conversations\/(?<id>[^/]+)\/messages$/,
     roles: ['agent', 'admin'],
+    auth: 'oidc',
     handler: async (req, res, { tenant, params, body }) => {
       const id = requireUuid(params.id, 'id');
       const text = requireText(body.body, 'body');

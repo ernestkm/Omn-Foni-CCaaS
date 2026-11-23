@@ -5,6 +5,7 @@ export function registerWidgetRoutes() {
     method: 'POST',
     pattern: /^\/api\/widget\/conversations$/,
     roles: ['widget'],
+    auth: 'widget',
     handler: async (req, res, { tenant, body }) => {
       const displayName = typeof body.displayName === 'string' && body.displayName.trim()
         ? body.displayName.slice(0, 200) : 'Visitor';
@@ -25,6 +26,7 @@ export function registerWidgetRoutes() {
     method: 'POST',
     pattern: /^\/api\/widget\/messages$/,
     roles: ['widget'],
+    auth: 'widget',
     handler: async (req, res, { tenant, body }) => {
       const conversationId = requireUuid(body.conversationId, 'conversationId');
       const text = requireText(body.body, 'body');
