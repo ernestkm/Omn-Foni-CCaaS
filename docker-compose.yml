@@ -6,7 +6,7 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: ccaas
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - ./db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
       - ./db/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
@@ -15,13 +15,30 @@ services:
       interval: 2s
       timeout: 3s
       retries: 20
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.8.2
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      KC_HOSTNAME: http://localhost:8081
+      KC_HEALTH_ENABLED: "true"
+    ports:
+      - "8081:8080"
+    volumes:
+      - ./keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
   core:
     build: .
     environment:
       DATABASE_URL: postgres://app_user:app_user@postgres:5432/ccaas
       PORT: "8080"
+      KEYCLOAK_ISSUER: http://localhost:8081/realms/ccaas
+      KEYCLOAK_JWKS_URL: http://keycloak:8080/realms/ccaas/protocol/openid-connect/certs
+      KEYCLOAK_AUDIENCE: ccaas-spa
     ports:
       - "${CORE_PORT:-8080}:8080"
     depends_on:
       postgres:
         condition: service_healthy
+      keycloak:
+        condition: service_started

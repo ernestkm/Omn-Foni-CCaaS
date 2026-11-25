@@ -10,9 +10,9 @@ test('hashToken is sha256 hex', () => {
 });
 
 test('resolveToken returns tenant for valid token', async () => {
-  const t = await resolveToken(hashToken('acme-agent-token'));
+  const t = await resolveToken(hashToken('acme-widget-token'));
   assert.equal(t.tenant_id, ACME);
-  assert.equal(t.role, 'agent');
+  assert.equal(t.role, 'widget');
 });
 
 test('resolveToken returns null for unknown token', async () => {
@@ -34,5 +34,5 @@ test('withTenant scopes queries to tenant', async () => {
     const { rows } = await c.query('SELECT count(*)::int AS n FROM api_tokens');
     return rows[0].n;
   });
-  assert.equal(n, 2);
+  assert.equal(n, 1);
 });

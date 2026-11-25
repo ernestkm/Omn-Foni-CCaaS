@@ -1,0 +1,72 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      ADMIN_DATABASE_URL: postgres://postgres:postgres@localhost:5432/ccaas
+      DATABASE_URL: postgres://app_user:app_user@localhost:5432/ccaas
+      KEYCLOAK_ISSUER: http://localhost:8081/realms/ccaas
+      KEYCLOAK_JWKS_URL: http://localhost:8081/realms/ccaas/protocol/openid-connect/certs
+      KEYCLOAK_TOKEN_URL: http://localhost:8081/realms/ccaas/protocol/openid-connect/token
+      KEYCLOAK_AUDIENCE: ccaas-spa
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: ccaas
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d ccaas"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Tests obtain agent/admin JWTs from the Keycloak token endpoint, so a JWKS stub is not enough.
+      # The dev realm export provides the users, roles, and tenant_id claims the tests assert.
+      - name: Start Keycloak with the dev realm
+        run: |
+          docker run -d --name keycloak -p 8081:8080 \
+            -v "$GITHUB_WORKSPACE/keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro" \
+            -e KC_BOOTSTRAP_ADMIN_USERNAME=admin \
+            -e KC_BOOTSTRAP_ADMIN_PASSWORD=admin \
+            -e KC_HOSTNAME=http://localhost:8081 \
+            -e KC_HEALTH_ENABLED=true \
+            quay.io/keycloak/keycloak:26.8.2 start-dev --import-realm
+          for attempt in $(seq 1 90); do
+            if curl -fsS "$KEYCLOAK_ISSUER/.well-known/openid-configuration" > /dev/null; then
+              echo "Keycloak ready"
+              exit 0
+            fi
+            sleep 2
+          done
+          docker logs --tail 100 keycloak
+          echo "Keycloak did not become ready" >&2
+          exit 1
+
+      - name: Apply migrations
+        run: node scripts/migrate.js
+
+      - name: Test
+        run: npm test
+
+      # db-reset drops schema_migrations and its indexes, so run the same
+      # migrations again against the test-created schema to verify both paths.
+      - name: Verify migrations after test reset
+        run: node scripts/migrate.js

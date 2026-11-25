@@ -1,9 +1,9 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { boot, api, TOKENS } from './helpers.js';
+import { boot, api, TOKENS, agentJwt, ensureKeycloak } from './helpers.js';
 
 let ctx;
-before(async () => { ctx = await boot(); });
+before(async () => { await ensureKeycloak(); ctx = await boot(); });
 after(async () => { await ctx.close(); });
 
 test('widget creates a conversation', async () => {
@@ -40,7 +40,8 @@ test('widget message rejects empty body', async () => {
   assert.equal(status, 400);
 });
 
-test('agent token cannot use widget endpoint', async () => {
-  const { status } = await api(ctx.base, 'POST', '/api/widget/conversations', { token: TOKENS.acmeAgent, body: {} });
-  assert.equal(status, 403);
+test('agent JWT cannot use widget endpoint', async () => {
+  const jwt = await agentJwt('acme-agent');
+  const { status } = await api(ctx.base, 'POST', '/api/widget/conversations', { token: jwt, body: {} });
+  assert.equal(status, 401);
 });

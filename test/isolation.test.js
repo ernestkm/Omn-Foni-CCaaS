@@ -1,9 +1,16 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { boot, api, TOKENS } from './helpers.js';
+import { boot, api, TOKENS, agentJwt, ensureKeycloak } from './helpers.js';
 
 let ctx;
-before(async () => { ctx = await boot(); });
+let acmeAgent;
+let globexAgent;
+before(async () => {
+  await ensureKeycloak();
+  ctx = await boot();
+  acmeAgent = await agentJwt('acme-agent');
+  globexAgent = await agentJwt('globex-agent');
+});
 after(async () => { await ctx.close(); });
 
 async function newConv(token) {
@@ -14,7 +21,7 @@ async function newConv(token) {
 test('agent lists only own tenant conversations', async () => {
   const acmeConv = await newConv(TOKENS.acmeWidget);
   const globexConv = await newConv(TOKENS.globexWidget);
-  const { json } = await api(ctx.base, 'GET', '/api/agent/conversations', { token: TOKENS.acmeAgent });
+  const { json } = await api(ctx.base, 'GET', '/api/agent/conversations', { token: acmeAgent });
   const ids = json.conversations.map((c) => c.id);
   assert.ok(ids.includes(acmeConv));
   assert.ok(!ids.includes(globexConv));
@@ -22,14 +29,14 @@ test('agent lists only own tenant conversations', async () => {
 
 test('agent cannot read another tenant conversation', async () => {
   const globexConv = await newConv(TOKENS.globexWidget);
-  const { status } = await api(ctx.base, 'GET', `/api/agent/conversations/${globexConv}/messages`, { token: TOKENS.acmeAgent });
+  const { status } = await api(ctx.base, 'GET', `/api/agent/conversations/${globexConv}/messages`, { token: acmeAgent });
   assert.equal(status, 404);
 });
 
 test('agent cannot reply into another tenant conversation', async () => {
   const globexConv = await newConv(TOKENS.globexWidget);
   const { status } = await api(ctx.base, 'POST', `/api/agent/conversations/${globexConv}/messages`, {
-    token: TOKENS.acmeAgent, body: { body: 'intrude' },
+    token: acmeAgent, body: { body: 'intrude' },
   });
   assert.equal(status, 404);
 });
@@ -37,19 +44,19 @@ test('agent cannot reply into another tenant conversation', async () => {
 test('forged tenant_id in body is ignored', async () => {
   const conv = await newConv(TOKENS.acmeWidget);
   const { status } = await api(ctx.base, 'POST', `/api/agent/conversations/${conv}/messages`, {
-    token: TOKENS.acmeAgent, body: { body: 'hi', tenant_id: '22222222-2222-2222-2222-222222222222' },
+    token: acmeAgent, body: { body: 'hi', tenant_id: '22222222-2222-2222-2222-222222222222' },
   });
   assert.equal(status, 201);
-  const globexRead = await api(ctx.base, 'GET', `/api/agent/conversations/${conv}/messages`, { token: TOKENS.globexAgent });
+  const globexRead = await api(ctx.base, 'GET', `/api/agent/conversations/${conv}/messages`, { token: globexAgent });
   assert.equal(globexRead.status, 404);
 });
 
 test('end-to-end widget to agent reply', async () => {
   const conv = await newConv(TOKENS.acmeWidget);
   await api(ctx.base, 'POST', '/api/widget/messages', { token: TOKENS.acmeWidget, body: { conversationId: conv, body: 'question' } });
-  const reply = await api(ctx.base, 'POST', `/api/agent/conversations/${conv}/messages`, { token: TOKENS.acmeAgent, body: { body: 'answer' } });
+  const reply = await api(ctx.base, 'POST', `/api/agent/conversations/${conv}/messages`, { token: acmeAgent, body: { body: 'answer' } });
   assert.equal(reply.status, 201);
-  const { json } = await api(ctx.base, 'GET', `/api/agent/conversations/${conv}/messages`, { token: TOKENS.acmeAgent });
+  const { json } = await api(ctx.base, 'GET', `/api/agent/conversations/${conv}/messages`, { token: acmeAgent });
   assert.equal(json.messages.length, 2);
   assert.equal(json.messages[0].sender, 'customer');
   assert.equal(json.messages[1].sender, 'agent');

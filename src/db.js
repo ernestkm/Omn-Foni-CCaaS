@@ -1,8 +1,7 @@
 import pg from 'pg';
+import { databaseUrl } from './config.js';
 
-export const pool = new pg.Pool({
-  connectionString: process.env.DATABASE_URL || 'postgres://app_user:app_user@localhost:5432/ccaas',
-});
+export const pool = new pg.Pool({ connectionString: databaseUrl });
 
 export async function resolveToken(hash) {
   const { rows } = await pool.query('SELECT tenant_id, role FROM resolve_token($1)', [hash]);

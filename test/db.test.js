@@ -56,8 +56,8 @@ test('RLS rejects cross-tenant insert', async () => {
 
 test('resolve_token maps hash to tenant and role', async () => {
   const { createHash } = await import('node:crypto');
-  const hash = createHash('sha256').update('acme-agent-token').digest('hex');
+  const hash = createHash('sha256').update('acme-widget-token').digest('hex');
   const { rows } = await pool.query('SELECT tenant_id, role FROM resolve_token($1)', [hash]);
   assert.equal(rows[0].tenant_id, ACME);
-  assert.equal(rows[0].role, 'agent');
+  assert.equal(rows[0].role, 'widget');
 });
