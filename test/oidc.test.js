@@ -27,14 +27,14 @@ async function localSigner() {
   return { jwks, privateKey };
 }
 
-async function signClaims(privateKey, claims, issuer = ISSUER) {
-  return new SignJWT(claims)
+async function signClaims(privateKey, claims, issuer = ISSUER, audience = AUDIENCE, subject = 'test-subject') {
+  const jwt = new SignJWT(claims)
     .setProtectedHeader({ alg: 'RS256' })
     .setIssuer(issuer)
-    .setAudience(AUDIENCE)
-    .setExpirationTime('5m')
-    .setSubject('test-subject')
-    .sign(privateKey);
+    .setAudience(audience)
+    .setExpirationTime('5m');
+  if (subject !== null) jwt.setSubject(subject);
+  return jwt.sign(privateKey);
 }
 
 test('verifyAccessToken returns tenant, role, sub for a valid token', async () => {
@@ -88,5 +88,29 @@ test('verifyAccessToken rejects a token without tenant_id', async () => {
 test('verifyAccessToken rejects a token without a known role', async () => {
   const { jwks, privateKey } = await localSigner();
   const token = await signClaims(privateKey, { tenant_id: ACME, roles: ['guest'] });
+  await assert.rejects(verifyAccessToken(token, jwks), (err) => err.status === 401);
+});
+
+test('verifyAccessToken rejects a token without sub', async () => {
+  const { jwks, privateKey } = await localSigner();
+  const token = await signClaims(privateKey, { tenant_id: ACME, roles: ['agent'] }, ISSUER, AUDIENCE, null);
+  await assert.rejects(verifyAccessToken(token, jwks), (err) => err.status === 401);
+});
+
+test('verifyAccessToken rejects a token with an empty sub', async () => {
+  const { jwks, privateKey } = await localSigner();
+  const token = await signClaims(privateKey, { tenant_id: ACME, roles: ['agent'] }, ISSUER, AUDIENCE, '');
+  await assert.rejects(verifyAccessToken(token, jwks), (err) => err.status === 401);
+});
+
+test('verifyAccessToken rejects a non-UUID tenant_id', async () => {
+  const { jwks, privateKey } = await localSigner();
+  const token = await signClaims(privateKey, { tenant_id: 'acme', roles: ['agent'] });
+  await assert.rejects(verifyAccessToken(token, jwks), (err) => err.status === 401);
+});
+
+test('verifyAccessToken rejects the wrong audience', async () => {
+  const { jwks, privateKey } = await localSigner();
+  const token = await signClaims(privateKey, { tenant_id: ACME, roles: ['agent'] }, ISSUER, 'other-audience');
   await assert.rejects(verifyAccessToken(token, jwks), (err) => err.status === 401);
 });

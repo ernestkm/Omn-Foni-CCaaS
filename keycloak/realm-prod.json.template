@@ -1,0 +1,106 @@
+{
+  "realm": "ccaas",
+  "enabled": true,
+  "attributes": {
+    "frontendUrl": "__PUBLIC_BASE_URL__/auth"
+  },
+  "sslRequired": "external",
+  "accessTokenLifespan": 300,
+  "roles": {
+    "realm": [
+      { "name": "agent" },
+      { "name": "admin" }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "ccaas-spa",
+      "name": "CCaaS SPA",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "implicitFlowEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": ["__PUBLIC_BASE_URL__/*"],
+      "webOrigins": ["__PUBLIC_BASE_URL__"],
+      "attributes": {
+        "pkce.code.challenge.method": "S256"
+      },
+      "protocolMappers": [
+        {
+          "name": "tenant_id",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "config": {
+            "user.attribute": "tenant_id",
+            "claim.name": "tenant_id",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        },
+        {
+          "name": "roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "config": {
+            "claim.name": "roles",
+            "jsonType.label": "String",
+            "multivalued": "true",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        },
+        {
+          "name": "audience-ccaas-spa",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.client.audience": "ccaas-spa",
+            "id.token.claim": "false",
+            "access.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "acme-agent",
+      "enabled": true,
+      "email": "acme-agent@example.test",
+      "emailVerified": true,
+      "firstName": "Acme",
+      "lastName": "Agent",
+      "attributes": { "tenant_id": ["11111111-1111-1111-1111-111111111111"] },
+      "credentials": [ { "type": "password", "value": "__AGENT_PASSWORD__", "temporary": false } ],
+      "realmRoles": ["agent"]
+    },
+    {
+      "username": "globex-agent",
+      "enabled": true,
+      "email": "globex-agent@example.test",
+      "emailVerified": true,
+      "firstName": "Globex",
+      "lastName": "Agent",
+      "attributes": { "tenant_id": ["22222222-2222-2222-2222-222222222222"] },
+      "credentials": [ { "type": "password", "value": "__AGENT_PASSWORD__", "temporary": false } ],
+      "realmRoles": ["agent"]
+    },
+    {
+      "username": "acme-admin",
+      "enabled": true,
+      "email": "acme-admin@example.test",
+      "emailVerified": true,
+      "firstName": "Acme",
+      "lastName": "Admin",
+      "attributes": { "tenant_id": ["11111111-1111-1111-1111-111111111111"] },
+      "credentials": [ { "type": "password", "value": "__ADMIN_PASSWORD__", "temporary": false } ],
+      "realmRoles": ["admin"]
+    }
+  ]
+}

@@ -1,7 +1,8 @@
 import { withTenant } from './db.js';
+import { clientIp } from './clientip.js';
 
 export function sourceIp(req) {
-  return req.socket?.remoteAddress || null;
+  return clientIp(req);
 }
 
 export async function recordAudit(tenantId, { actor, action, target, sourceIp: ip }) {

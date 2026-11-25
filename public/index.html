@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:,">
 <title>Omn-Foni CCaaS</title>
 <style>
   body { font-family: system-ui, sans-serif; margin: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; padding: 1rem; }
@@ -17,11 +18,11 @@
 </style>
 </head>
 <body>
-<h1>Omn-Foni CCaaS thin core <span class="dev">dev tokens only</span></h1>
+<h1>Omn-Foni CCaaS thin core <span class="dev">dev only</span></h1>
 
 <section id="widget" aria-label="Customer web chat">
   <h2>Customer web chat</h2>
-  <label>Widget token <input id="widgetToken" value="acme-widget-token"></label>
+  <label>Widget token <input id="widgetToken" placeholder="Paste widget token" autocomplete="off"></label>
   <div class="log" id="widgetLog" aria-live="polite"></div>
   <label>Message <input id="widgetInput" placeholder="Type a message"></label>
   <button id="widgetSend">Send</button>
@@ -56,6 +57,10 @@ async function call(method, path, token, body) {
     headers: { authorization: 'Bearer ' + token, 'content-type': 'application/json' },
     body: body ? JSON.stringify(body) : undefined,
   });
+  if (res.status === 401 && path.startsWith('/api/agent/')) {
+    agentToken = null;
+    $('authState').textContent = 'Token expired. Sign in again.';
+  }
   return { status: res.status, json: await res.json().catch(() => null) };
 }
 
@@ -72,10 +77,15 @@ $('widgetSend').addEventListener('click', async () => {
   else add($('widgetLog'), 'Error: ' + r.status);
 });
 
-const AUTH = 'http://localhost:8081/realms/ccaas/protocol/openid-connect/auth';
-const TOKEN = 'http://localhost:8081/realms/ccaas/protocol/openid-connect/token';
-const CLIENT_ID = 'ccaas-spa';
 let agentToken = null;
+const configPromise = (async () => {
+  const res = await fetch('/api/config');
+  if (!res.ok) throw new Error('config request failed with ' + res.status);
+  return res.json();
+})().catch((err) => {
+  $('authState').textContent = 'Configuration error: ' + err.message;
+  return null;
+});
 
 function b64url(buf) {
   return btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
@@ -84,47 +94,76 @@ async function pkceChallenge(verifier) {
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier));
   return b64url(digest);
 }
+function clearCallbackParams(url) {
+  for (const key of ['code', 'state', 'error', 'error_description', 'session_state', 'iss']) {
+    url.searchParams.delete(key);
+  }
+  history.replaceState(null, '', url.toString());
+}
 $('signIn').addEventListener('click', async () => {
+  const config = await configPromise;
+  if (!config) return;
   const verifier = b64url(crypto.getRandomValues(new Uint8Array(32)));
+  const state = b64url(crypto.getRandomValues(new Uint8Array(32)));
   sessionStorage.setItem('pkce_verifier', verifier);
+  sessionStorage.setItem('pkce_state', state);
   const challenge = await pkceChallenge(verifier);
   const params = new URLSearchParams({
-    client_id: CLIENT_ID,
+    client_id: config.clientId,
     redirect_uri: location.origin + '/',
     response_type: 'code',
     scope: 'openid',
     code_challenge: challenge,
     code_challenge_method: 'S256',
+    state,
   });
-  location.assign(AUTH + '?' + params.toString());
+  location.assign(config.authorizationUrl + '?' + params.toString());
 });
 async function handleRedirect() {
   const url = new URL(location.href);
+  const oauthError = url.searchParams.get('error');
+  if (oauthError) {
+    const description = url.searchParams.get('error_description');
+    sessionStorage.removeItem('pkce_verifier');
+    sessionStorage.removeItem('pkce_state');
+    clearCallbackParams(url);
+    throw new Error(description || oauthError);
+  }
   const code = url.searchParams.get('code');
   if (!code) return;
   const verifier = sessionStorage.getItem('pkce_verifier');
-  const res = await fetch(TOKEN, {
+  const state = sessionStorage.getItem('pkce_state');
+  const callbackState = url.searchParams.get('state');
+  sessionStorage.removeItem('pkce_verifier');
+  sessionStorage.removeItem('pkce_state');
+  clearCallbackParams(url);
+  if (!state || !callbackState || callbackState !== state) throw new Error('sign-in state mismatch. Sign in again.');
+  if (!verifier) throw new Error('missing PKCE verifier. Sign in again.');
+  const config = await configPromise;
+  if (!config) return;
+  const res = await fetch(config.tokenUrl, {
     method: 'POST',
     headers: { 'content-type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
       grant_type: 'authorization_code',
-      client_id: CLIENT_ID,
+      client_id: config.clientId,
       redirect_uri: location.origin + '/',
       code,
       code_verifier: verifier,
     }),
   });
   const json = await res.json().catch(() => null);
-  if (json && json.access_token) {
-    agentToken = json.access_token;
-    $('authState').textContent = 'signed in';
+  if (!res.ok || !json || !json.access_token) {
+    const reason = json && (json.error_description || json.error);
+    throw new Error(reason || 'token exchange failed with ' + res.status);
   }
-  url.searchParams.delete('code');
-  url.searchParams.delete('session_state');
-  url.searchParams.delete('iss');
-  history.replaceState(null, '', url.toString());
+  agentToken = json.access_token;
+  $('authState').textContent = 'signed in';
 }
-handleRedirect();
+(async () => {
+  try { await handleRedirect(); }
+  catch (err) { $('authState').textContent = 'Sign-in failed: ' + err.message; }
+})();
 
 $('refresh').addEventListener('click', async () => {
   const token = agentToken;

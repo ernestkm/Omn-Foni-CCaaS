@@ -57,6 +57,9 @@ CREATE TABLE IF NOT EXISTS audit_events (
   created_at timestamptz NOT NULL DEFAULT now()
 );
 
+CREATE INDEX IF NOT EXISTS audit_events_tenant_created_idx
+  ON audit_events (tenant_id, created_at DESC);
+
 ALTER TABLE tenants ENABLE ROW LEVEL SECURITY;
 ALTER TABLE api_tokens ENABLE ROW LEVEL SECURITY;
 ALTER TABLE contacts ENABLE ROW LEVEL SECURITY;
@@ -109,5 +112,6 @@ $$;
 GRANT USAGE ON SCHEMA public TO app_user;
 GRANT SELECT, INSERT, UPDATE ON tenants, api_tokens, contacts, conversations, messages TO app_user;
 GRANT SELECT, INSERT ON audit_events TO app_user;
+REVOKE UPDATE, DELETE ON audit_events FROM app_user;
 GRANT DELETE ON api_tokens TO app_user;
 GRANT EXECUTE ON FUNCTION resolve_token(text) TO app_user;

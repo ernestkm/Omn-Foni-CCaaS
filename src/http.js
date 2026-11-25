@@ -2,10 +2,14 @@ import { withTenant } from './db.js';
 export { withTenant };
 
 export const routes = [];
-export function registerRoute(route) { routes.push(route); }
+const AUTH_MODES = new Set(['widget', 'oidc']);
+export function registerRoute(route) {
+  if (!AUTH_MODES.has(route.auth)) throw new Error(`invalid auth mode: ${route.auth}`);
+  routes.push(route);
+}
 
-export function send(res, status, payload) {
-  res.writeHead(status, { 'content-type': 'application/json' });
+export function send(res, status, payload, headers = {}) {
+  res.writeHead(status, { 'content-type': 'application/json', ...headers });
   res.end(JSON.stringify(payload));
 }
 
@@ -23,7 +27,7 @@ export async function readBody(req) {
   catch { throw Object.assign(new Error('invalid JSON'), { status: 400 }); }
 }
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export function requireUuid(value, field) {
   if (typeof value !== 'string' || !UUID_RE.test(value)) {
     throw Object.assign(new Error(`${field} must be a UUID`), { status: 400 });

@@ -1,6 +1,9 @@
 node_modules
-test
-docs
-evidence
 .git
+.env*
+docs
+test
+evidence
+.worktrees
+worktrees
 *.log

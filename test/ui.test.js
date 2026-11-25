@@ -19,5 +19,9 @@ test('index contains PKCE sign-in for the agent panel', async () => {
   assert.match(html, /id="signIn"/);
   assert.match(html, /code_challenge/);
   assert.match(html, /code_verifier/);
-  assert.match(html, /openid-connect\/auth/);
+  assert.match(html, /pkce_state/);
+  assert.match(html, /fetch\('\/api\/config'\)/);
+  assert.match(html, /config\.authorizationUrl/);
+  assert.match(html, /config\.tokenUrl/);
+  assert.doesNotMatch(html, /localhost:8081/);
 });

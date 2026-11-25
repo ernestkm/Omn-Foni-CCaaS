@@ -17,5 +17,10 @@ export async function authenticateOidc(req) {
   const header = req.headers['authorization'] || '';
   const match = header.match(/^Bearer (.+)$/);
   if (!match) return null;
-  try { return await verifyAccessToken(match[1]); } catch { return null; }
+  try {
+    return await verifyAccessToken(match[1]);
+  } catch (err) {
+    if (err.status === 503) throw err;
+    return null;
+  }
 }

@@ -1,7 +1,7 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
-import { boot, api, agentJwt, ensureKeycloak, ACME } from './helpers.js';
+import { boot, api, agentJwt, ensureKeycloak, ACME, GLOBEX } from './helpers.js';
 import { withTenant } from '../src/db.js';
 
 let ctx;
@@ -23,6 +23,15 @@ test('cross-tenant read is denied and audited', async () => {
   });
   assert.ok(rows.some((r) => r.target === globexConv));
   assert.ok(rows.every((r) => r.actor));
+});
+
+test('cross-tenant audit INSERT is rejected by WITH CHECK', async () => {
+  await assert.rejects(
+    withTenant(ACME, (c) => c.query(
+      'INSERT INTO audit_events(tenant_id, actor, action) VALUES($1,$2,$3)',
+      [GLOBEX, 'test', 'audit.insert.denied'])),
+    /row-level security/
+  );
 });
 
 test('audit_events is append-only for app_user', async () => {
