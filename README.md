@@ -1,15 +1,17 @@
-# Omn-Foni-CCaaS
+# Omni-Foni-CCaaS
 
-FOSS multi-tenant omnichannel CCaaS. This repository currently contains the
-thin-core vertical slice: a conversation/routing/tenancy service with
-PostgreSQL Row-Level Security tenant isolation, a web-chat channel, and an
-agent inbox API. See `docs/blueprint.md` for the full multi-year architecture.
+A multi-tenant omnichannel contact-centre platform. This repository contains the
+thin-core vertical slice: a conversation, routing, and tenancy service with
+PostgreSQL Row-Level Security tenant isolation, a web-chat channel, and an agent
+inbox API. See `docs/blueprint.md` for the full multi-year architecture.
+
+Developed by **Ernest Manamela** for **Hosted Cloud Services (Pty) Ltd**.
 
 ## Scope of this slice
 
-Included: thin core, PostgreSQL + RLS, web chat, agent inbox API, cross-tenant
-isolation tests, dev web UI, Keycloak identity, and append-only audit.
-Deferred: WhatsApp, email, voice, AI flows, Temporal, NATS, SeaweedFS,
+Included: thin core, PostgreSQL with RLS, web chat, agent inbox API, cross-tenant
+isolation tests, web UI, Keycloak identity, and append-only audit.
+Deferred: WhatsApp, email, voice, AI flows, Temporal, NATS, SeaweedFS, and the
 full React/Carbon inbox. These are later blueprint phases.
 
 ## Requirements
@@ -24,9 +26,9 @@ full React/Carbon inbox. These are later blueprint phases.
     npm run db:reset
     npm start
 
-Open http://localhost:8080. Widget tokens (dev only, never production):
+Open http://localhost:8080. Widget tokens (development only, never production):
 `acme-widget-token`, `globex-widget-token`. Agent and admin routes require a
-Keycloak OIDC sign-in via the dev UI. See "Phase 0 identity and audit" below.
+Keycloak OIDC sign-in via the web UI. See "Phase 0 identity and audit" below.
 
 ## Run (full stack via Compose)
 
@@ -39,9 +41,9 @@ already taken, override it: `CORE_PORT=8090 docker compose up -d --build`.
 
     npm test
 
-Resets the dev/test database, then runs the built-in node:test suite,
-including cross-tenant isolation tests. `db:reset` is destructive and
-dev/test-only.
+Resets the development/test database, then runs the built-in node:test suite,
+including cross-tenant isolation tests. `db:reset` is destructive and intended
+for development/test environments only.
 
 ## Security model
 
@@ -54,7 +56,7 @@ when the tenant is unset. Client-supplied tenant identifiers are never trusted.
 
 Keycloak supplies identity for agent and admin routes. Start it with
 `npm run kc:up` (Keycloak only) or `npm run services:up` (Postgres and Keycloak).
-The realm is `ccaas`, the SPA client is `ccaas-spa`, and the dev users are
+The realm is `ccaas`, the SPA client is `ccaas-spa`, and the development users are
 `acme-agent` and `globex-agent` (role agent) plus `acme-admin` (role admin).
 All three use password `dev-password`. These are development identities only.
 
@@ -67,21 +69,20 @@ issuer and audience. Configuration uses these environment variables:
 - `KEYCLOAK_TOKEN_URL`: default `${ISSUER}/protocol/openid-connect/token`
 
 Agent and admin API routes require a Keycloak OIDC bearer token. Widget routes
-keep static widget-token auth. The dev SPA signs in with Authorization Code +
-PKCE against
-`http://localhost:8081/realms/ccaas/protocol/openid-connect/auth`.
+keep static widget-token auth. The SPA signs in with Authorization Code + PKCE
+against `http://localhost:8081/realms/ccaas/protocol/openid-connect/auth`.
 
 Audit rows are append-only in the `audit_events` table. Privileged actions and
 cross-tenant denials are recorded. Rotate a tenant's widget token with
 `POST /api/admin/tokens/rotate`, which requires an admin OIDC token.
 
-`npm test` requires both Postgres and Keycloak running. It resets the dev/test
-database before running the node:test suite.
+`npm test` requires both Postgres and Keycloak running. It resets the
+development/test database before running the node:test suite.
 
-Version sources, accessed 2026-11-23:
+## Production deployment
 
-- Keycloak image `quay.io/keycloak/keycloak:26.8.2`: https://github.com/keycloak/keycloak/releases/tag/26.8.2
-- `jose` `^6.2.18`: https://www.npmjs.com/package/jose
+See `docs/production.md` for the production runbook, including DNS, TLS,
+the container stack, and rollback procedures.
 
 ## Layout
 
@@ -90,11 +91,12 @@ Version sources, accessed 2026-11-23:
 - `src/db.js` pool, `resolveToken`, `withTenant` (RLS transaction scope).
 - `src/auth.js` bearer-token hashing and authentication.
 - `src/routes/widget.js`, `src/routes/agent.js` channel and inbox endpoints.
-- `db/schema.sql`, `db/seed.sql` schema, RLS policies, dev seed.
-- `scripts/db-reset.js` destructive dev/test reset.
-- `public/index.html` dev web-chat widget and agent inbox.
+- `db/schema.sql`, `db/seed.sql` schema, RLS policies, seed data.
+- `scripts/db-reset.js` destructive development/test reset.
+- `public/index.html` web-chat widget and agent inbox.
 - `test/` node:test suite including isolation tests.
 
-## License
+## Copyright
 
-MIT. See LICENSE.
+Copyright (c) 2026 Hosted Cloud Services (Pty) Ltd. All rights reserved.
+Developed by Ernest Manamela for Hosted Cloud Services (Pty) Ltd.
